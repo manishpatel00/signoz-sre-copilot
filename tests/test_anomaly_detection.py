@@ -1,8 +1,12 @@
 """Tests for Isolation Forest integration."""
 
+# pyrefly: ignore [missing-import]
 import pytest
+# pyrefly: ignore [missing-import]
 from opentelemetry.sdk.trace import TracerProvider
+# pyrefly: ignore [missing-import]
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+# pyrefly: ignore [missing-import]
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 def test_anomaly_span_tagging():

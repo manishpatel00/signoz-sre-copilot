@@ -1,5 +1,6 @@
 """Integration tests for SigNoz MCP."""
 import os
+# pyrefly: ignore [missing-import]
 import pytest
 import requests
 
