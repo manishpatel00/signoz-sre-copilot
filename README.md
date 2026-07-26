@@ -49,7 +49,7 @@ Incident Resolved
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/manish-kumar/signoz-sre-copilot.git
+git clone https://github.com/manishpatel00/signoz-sre-copilot.git
 cd signoz-sre-copilot
 pip install -r requirements.txt
 cp .env.example .env
