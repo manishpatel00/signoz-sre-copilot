@@ -164,7 +164,12 @@ class RemediationEngine:
 
 # Configure LLM dynamically
 agent_llm = None
-if os.getenv("GEMINI_API_KEY"):
+if os.getenv("GROQ_API_KEY"):
+    agent_llm = LLM(
+        model="groq/llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+elif os.getenv("GEMINI_API_KEY"):
     agent_llm = LLM(
         model="gemini/gemini-2.0-flash",
         api_key=os.getenv("GEMINI_API_KEY")
@@ -186,6 +191,6 @@ remediation_agent = Agent(
     ],
     verbose=True,
     allow_delegation=False,
-    memory=True,
+    memory=False,
     llm=agent_llm,
 )

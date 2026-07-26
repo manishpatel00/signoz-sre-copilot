@@ -1,22 +1,58 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-build/
-dist/
 *.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Environment & Secrets (NEVER push)
 .env
 .env.local
+.env.production
+
+# SigNoz Foundry generated (runtime artifacts)
 pours/
+
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.cursorrules
+claude.md
+SKILL.md
+SUBMISSION.md
+VS_CODE_COPILOT_SETUP_GUIDE.md
+
+# OS
 .DS_Store
 Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Testing / Cache
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Logs
 *.log
+
+# Kubernetes
 kubeconfig
+
+# Misc
+*.bak
+*.tmp

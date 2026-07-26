@@ -42,13 +42,13 @@ tracer = trace.get_tracer("orchestrator")
 
 # Fallback imports to support both absolute and relative execution
 try:
-    from .diagnostic_agent import diagnostic_agent
-    from .remediation_agent import remediation_agent
-    from .validator_agent import validator_agent
+    from .diagnostic_agent import diagnostic_agent, _query_traces, _query_logs, _get_active_alerts
+    from .remediation_agent import remediation_agent, _restart_deployment
+    from .validator_agent import validator_agent, _check_service_health, _wait_and_validate
 except ImportError:
-    from diagnostic_agent import diagnostic_agent
-    from remediation_agent import remediation_agent
-    from validator_agent import validator_agent
+    from diagnostic_agent import diagnostic_agent, _query_traces, _query_logs, _get_active_alerts
+    from remediation_agent import remediation_agent, _restart_deployment
+    from validator_agent import validator_agent, _check_service_health, _wait_and_validate
 
 class IncidentManager:
     def __init__(self):
@@ -57,7 +57,7 @@ class IncidentManager:
             tasks=[],
             process=Process.sequential,
             verbose=True,
-            memory=True,
+            memory=False,
         )
 
     @tracer.start_as_current_span("incident.handle")
@@ -118,8 +118,39 @@ class IncidentManager:
             expected_output="Validation report confirming resolution or escalation."
         )
 
-        self.crew.tasks = [diagnosis_task, remediation_task, validation_task]
-        result = self.crew.kickoff()
+        if os.getenv("MOCK_LLM", "false").lower() == "true":
+            logger.info("Executing SRE Copilot in MOCK LLM mode (bypassing CrewAI LLM calls)...")
+            
+            # Step 1: Mock Diagnostic Agent
+            logger.info("[Mock Diagnostic Agent] Inspecting incident data...")
+            traces = _query_traces(service, "30m")
+            logs = _query_logs(service, "error", "30m")
+            health = _check_service_health(service, namespace)
+            
+            diag_report = f"""
+            === MOCK DIAGNOSIS REPORT ===
+            Active Alerts: Firing alert {alert_name} for {service} in {namespace}.
+            Traces checked: {traces[:200]}...
+            Logs checked: {logs[:200]}...
+            Metrics checked: {health}
+            Root Cause: Detected failing pod or high error rate in service {service}.
+            """
+            logger.info(diag_report)
+            
+            # Step 2: Mock Remediation Agent
+            logger.info("[Mock Remediation Agent] Determining remediation action...")
+            remediation_result = _restart_deployment(namespace, service)
+            logger.info(f"[Mock Remediation Agent] Result: {remediation_result}")
+            
+            # Step 3: Mock Validator Agent
+            logger.info("[Mock Validator Agent] Validating recovery...")
+            validation_result = _wait_and_validate(service, namespace, retries=3)
+            logger.info(f"[Mock Validator Agent] Result: {validation_result}")
+            
+            result = f"PASSED:\n{diag_report}\n{remediation_result}\n{validation_result}"
+        else:
+            self.crew.tasks = [diagnosis_task, remediation_task, validation_task]
+            result = self.crew.kickoff()
 
         # Retrieve current trace ID for correlation in the report
         trace_id = trace.format_trace_id(span.get_span_context().trace_id)

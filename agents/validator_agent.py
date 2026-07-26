@@ -53,6 +53,26 @@ def _parse_mcp_response(response_json: dict) -> dict:
                     return {"text": item["text"]}
     return response_json
 
+import time
+
+def _get_start_end_ms(time_range: str):
+    try:
+        unit = time_range[-1]
+        val = int(time_range[:-1])
+    except Exception:
+        unit = "h"
+        val = 1
+    
+    multiplier = 60
+    if unit == "h":
+        multiplier = 3600
+    elif unit == "d":
+        multiplier = 86400
+    
+    end_ms = int(time.time() * 1000)
+    start_ms = end_ms - (val * multiplier * 1000)
+    return start_ms, end_ms
+
 def _check_service_health(service: str, namespace: str) -> str:
     """Check if error rate and latency are normal and alerts are cleared."""
     with tracer.start_as_current_span("validation.health") as span:
@@ -60,14 +80,29 @@ def _check_service_health(service: str, namespace: str) -> str:
         span.set_attribute("mcp.service", service)
         try:
             error_query = f"rate(signoz_calls_total{{service_name='{service}',status_code='STATUS_CODE_ERROR'}}[5m])"
+            start_ms, end_ms = _get_start_end_ms("5m")
             payload = {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "query_metrics",
+                    "name": "signoz_execute_builder_query",
                     "arguments": {
-                        "query": error_query,
-                        "time_range": "5m"
+                        "query": {
+                            "compositeQuery": {
+                                "queryType": "promql",
+                                "panelType": "graph",
+                                "queries": [
+                                    {
+                                        "name": "A",
+                                        "query": error_query,
+                                        "legend": ""
+                                    }
+                                ]
+                            },
+                            "start": start_ms,
+                            "end": end_ms,
+                            "requestType": "time_series"
+                        }
                     }
                 },
                 "id": 10
@@ -83,9 +118,11 @@ def _check_service_health(service: str, namespace: str) -> str:
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "get_alerts",
+                    "name": "signoz_list_alerts",
                     "arguments": {
-                        "state": "firing"
+                        "active": True,
+                        "silenced": False,
+                        "inhibited": False
                     }
                 },
                 "id": 11
@@ -142,10 +179,10 @@ def _verify_traces(service: str, time_range: str = "5m") -> str:
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "query_traces",
+                    "name": "signoz_search_traces",
                     "arguments": {
                         "service": service,
-                        "time_range": time_range,
+                        "timeRange": time_range,
                         "limit": 10
                     }
                 },
@@ -190,6 +227,7 @@ def _verify_traces(service: str, time_range: str = "5m") -> str:
             span.record_exception(e)
             span.set_status(trace.StatusCode.ERROR, str(e))
             return f"Error: {str(e)}"
+
 
 def _wait_and_validate(service: str, namespace: str, retries: int = 5) -> str:
     """Wait for service recovery with retries."""
@@ -238,7 +276,12 @@ class ValidationEngine:
 
 # Configure LLM dynamically
 agent_llm = None
-if os.getenv("GEMINI_API_KEY"):
+if os.getenv("GROQ_API_KEY"):
+    agent_llm = LLM(
+        model="groq/llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+elif os.getenv("GEMINI_API_KEY"):
     agent_llm = LLM(
         model="gemini/gemini-2.0-flash",
         api_key=os.getenv("GEMINI_API_KEY")
@@ -259,6 +302,6 @@ validator_agent = Agent(
     ],
     verbose=True,
     allow_delegation=False,
-    memory=True,
+    memory=False,
     llm=agent_llm,
 )

@@ -9,6 +9,7 @@ from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+# pyrefly: ignore [missing-import]
 from opentelemetry.sdk.resources import Resource
 
 # Load environment variables
@@ -48,6 +49,26 @@ def _parse_mcp_response(response_json: dict) -> str:
                 return item["text"]
     return json.dumps(response_json, indent=2)
 
+import time
+
+def _get_start_end_ms(time_range: str):
+    try:
+        unit = time_range[-1]
+        val = int(time_range[:-1])
+    except Exception:
+        unit = "h"
+        val = 1
+    
+    multiplier = 60
+    if unit == "h":
+        multiplier = 3600
+    elif unit == "d":
+        multiplier = 86400
+    
+    end_ms = int(time.time() * 1000)
+    start_ms = end_ms - (val * multiplier * 1000)
+    return start_ms, end_ms
+
 def _query_traces(service: str, time_range: str = "1h", min_duration_ms: int = 0) -> str:
     """Query SigNoz traces via MCP."""
     with tracer.start_as_current_span("mcp.query_traces") as span:
@@ -55,16 +76,18 @@ def _query_traces(service: str, time_range: str = "1h", min_duration_ms: int = 0
         span.set_attribute("mcp.time_range", time_range)
         span.set_attribute("mcp.min_duration_ms", min_duration_ms)
         try:
+            arguments = {
+                "service": service,
+                "timeRange": time_range
+            }
+            if min_duration_ms > 0:
+                arguments["minDuration"] = str(min_duration_ms * 1_000_000)
             payload = {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "query_traces",
-                    "arguments": {
-                        "service": service,
-                        "time_range": time_range,
-                        "min_duration_ms": min_duration_ms
-                    }
+                    "name": "signoz_search_traces",
+                    "arguments": arguments
                 },
                 "id": 1
             }
@@ -86,14 +109,29 @@ def _query_metrics(promql: str, time_range: str = "1h") -> str:
         span.set_attribute("mcp.promql", promql)
         span.set_attribute("mcp.time_range", time_range)
         try:
+            start_ms, end_ms = _get_start_end_ms(time_range)
             payload = {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "query_metrics",
+                    "name": "signoz_execute_builder_query",
                     "arguments": {
-                        "query": promql,
-                        "time_range": time_range
+                        "query": {
+                            "compositeQuery": {
+                                "queryType": "promql",
+                                "panelType": "graph",
+                                "queries": [
+                                    {
+                                        "name": "A",
+                                        "query": promql,
+                                        "legend": ""
+                                    }
+                                ]
+                            },
+                            "start": start_ms,
+                            "end": end_ms,
+                            "requestType": "time_series"
+                        }
                     }
                 },
                 "id": 2
@@ -118,17 +156,19 @@ def _query_logs(service: str, query: str = "", time_range: str = "1h", limit: in
         span.set_attribute("mcp.time_range", time_range)
         span.set_attribute("mcp.limit", limit)
         try:
+            arguments = {
+                "service": service,
+                "timeRange": time_range,
+                "limit": limit
+            }
+            if query:
+                arguments["searchText"] = query
             payload = {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "query_logs",
-                    "arguments": {
-                        "service": service,
-                        "query": query,
-                        "time_range": time_range,
-                        "limit": limit
-                    }
+                    "name": "signoz_search_logs",
+                    "arguments": arguments
                 },
                 "id": 3
             }
@@ -152,9 +192,11 @@ def _get_active_alerts() -> str:
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
-                    "name": "get_alerts",
+                    "name": "signoz_list_alerts",
                     "arguments": {
-                        "state": "firing"
+                        "active": True,
+                        "silenced": False,
+                        "inhibited": False
                     }
                 },
                 "id": 4
@@ -208,7 +250,12 @@ class SigNozMCPTools:
 
 # Configure LLM dynamically
 agent_llm = None
-if os.getenv("GEMINI_API_KEY"):
+if os.getenv("GROQ_API_KEY"):
+    agent_llm = LLM(
+        model="groq/llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+elif os.getenv("GEMINI_API_KEY"):
     agent_llm = LLM(
         model="gemini/gemini-2.0-flash",
         api_key=os.getenv("GEMINI_API_KEY")
@@ -232,6 +279,6 @@ diagnostic_agent = Agent(
     ],
     verbose=True,
     allow_delegation=False,
-    memory=True,
+    memory=False,
     llm=agent_llm,
 )
