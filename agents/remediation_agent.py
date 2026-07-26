@@ -4,7 +4,7 @@ import json
 import subprocess
 import datetime
 from dotenv import load_dotenv
-from crewai import Agent
+from crewai import Agent, LLM
 from crewai.tools import tool
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -162,6 +162,14 @@ class RemediationEngine:
     def get_pod_status(self, namespace: str, deployment: str) -> str:
         return _get_pod_status(namespace, deployment)
 
+# Configure LLM dynamically
+agent_llm = None
+if os.getenv("GEMINI_API_KEY"):
+    agent_llm = LLM(
+        model="gemini/gemini-1.5-flash",
+        api_key=os.getenv("GEMINI_API_KEY")
+    )
+
 remediation_agent = Agent(
     role="Senior SRE Remediation Engineer",
     goal="Execute safe infrastructure remediation actions",
@@ -179,4 +187,5 @@ remediation_agent = Agent(
     verbose=True,
     allow_delegation=False,
     memory=True,
+    llm=agent_llm,
 )

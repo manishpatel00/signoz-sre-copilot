@@ -4,7 +4,7 @@ import json
 import time
 import requests
 from dotenv import load_dotenv
-from crewai import Agent
+from crewai import Agent, LLM
 from crewai.tools import tool
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -236,6 +236,14 @@ class ValidationEngine:
     def wait_and_validate(self, service: str, namespace: str, retries: int = 5) -> str:
         return _wait_and_validate(service, namespace, retries)
 
+# Configure LLM dynamically
+agent_llm = None
+if os.getenv("GEMINI_API_KEY"):
+    agent_llm = LLM(
+        model="gemini/gemini-1.5-flash",
+        api_key=os.getenv("GEMINI_API_KEY")
+    )
+
 validator_agent = Agent(
     role="Senior SRE Validation Engineer",
     goal="Verify remediation actions resolved incidents",
@@ -252,4 +260,5 @@ validator_agent = Agent(
     verbose=True,
     allow_delegation=False,
     memory=True,
+    llm=agent_llm,
 )
