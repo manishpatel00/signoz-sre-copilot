@@ -1,29 +1,38 @@
-# SigNoz SRE Copilot
+<h1 align="center">
+   SigNoz SRE Copilot
+</h1>
 
-<div align="center">
+<p align="center">
+  <strong>Autonomous Self-Healing Infrastructure powered by SigNoz MCP & CrewAI</strong>
+</p>
 
-![SigNoz SRE Copilot Banner](https://img.shields.io/badge/SigNoz-SRE_Copilot-orange?style=for-the-badge&logo=prometheus)
-![Agents of SigNoz Hackathon](https://img.shields.io/badge/Hackathon-Agents_of_SigNoz-blueviolet?style=for-the-badge)
-![Agent Framework](https://img.shields.io/badge/Agent_Framework-CrewAI-blue?style=for-the-badge)
-![Groq LLM](https://img.shields.io/badge/LLM-Groq_Llama--3.3-green?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+<p align="center">
+  AI agents that detect incidents, perform root cause analysis, generate fixes, automate remediation, and create observability reports.
+</p>
 
-**Autonomous Self-Healing Infrastructure via SigNoz MCP + CrewAI**
+<p align="center">
+  <img src="https://img.shields.io/badge/🏆_Agents_of_SigNoz-Hackathon-blueviolet?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/SigNoz-MCP-orange?style=for-the-badge&logo=prometheus" />
+  <img src="https://img.shields.io/badge/CrewAI-Multi--Agent-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Groq-Llama_3.3-00A67E?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/License-MIT-success?style=for-the-badge" />
+</p>
 
-*Winner-tier submission for **Agents of SigNoz** hackathon (Track 01: AI & Agent Observability)*  
-*Built with care by Manish Kumar | Solo participant*
-
-</div>
+<p align="center">
+  <b>🏆 Built for the Agents of SigNoz Hackathon</b><br>
+  <i>Track 01 • AI & Agent Observability</i><br><br>
+</p>
 
 ---
 
-## 🌟 Overview
+
+## Overview
 
 SigNoz SRE Copilot is an **autonomous incident response system** designed to automate root-cause diagnosis and remediation. By integrating **CrewAI** agents with the official **SigNoz MCP (Model Context Protocol) Server**, the copilot behaves like an automated On-Call Engineer: it intercepts alerts, queries SigNoz telemetry (traces, logs, metrics), determines the root cause, triggers K8s remediation actions, validates recovery, and records self-healing traces back into SigNoz.
 
 ---
 
-## 📐 Architecture & Flow
+## Architecture & Flow
 
 The copilot follows a highly structured, multi-agent loop designed to diagnose, fix, and verify infrastructure issues:
 
@@ -78,7 +87,7 @@ graph TD
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Component | Technology | Description |
 | :--- | :--- | :--- |
@@ -92,7 +101,7 @@ graph TD
 
 ---
 
-## 🚦 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
@@ -135,7 +144,7 @@ make demo
 
 ---
 
-## 📊 SigNoz Features Utilized
+## SigNoz Features Utilized
 
 1. **Traces**: Every agent query and action generates OTel spans, providing absolute meta-observability of the AI's operations.
 2. **Logs**: Logs are automatically filtered and queried by the Diagnostic Agent to search for exception stack traces.
@@ -146,7 +155,7 @@ make demo
 
 ---
 
-## ⚖️ License
+## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
 
