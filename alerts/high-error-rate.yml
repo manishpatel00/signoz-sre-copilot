@@ -1,0 +1,57 @@
+alert_rules:
+  - name: High Error Rate - Critical
+    alert_type: metric
+    query:
+      query_type: builder
+      builder:
+        query_name: A
+        metric_name: signoz_calls_total
+        aggregateOperator: rate
+        expression: A
+        filters:
+          - key: status_code
+            operator: IN
+            value: ["STATUS_CODE_ERROR"]
+    rule_condition:
+      comparator: ">"
+      target: 0.05
+    eval_window: 5m0s
+    labels:
+      severity: critical
+      team: sre
+      auto_remediate: "true"
+    annotations:
+      summary: "High error rate for {{.service_name}}"
+      description: "Error rate is {{.value}}% for {{.service_name}}"
+    notification_channels:
+      - webhook:
+          url: "http://sre-copilot:8080/webhook/alert"
+          method: POST
+          headers:
+            Content-Type: application/json
+
+  - name: Anomaly Detected - Isolation Forest
+    alert_type: metric
+    query:
+      query_type: builder
+      builder:
+        query_name: A
+        metric_name: iforest.anomaly_score
+        aggregateOperator: avg
+        expression: A
+        filters:
+          - key: anomaly.is_anomaly
+            operator: "="
+            value: "true"
+    rule_condition:
+      comparator: ">"
+      target: 0.7
+    eval_window: 2m0s
+    labels:
+      severity: warning
+      team: sre
+      auto_remediate: "true"
+    notification_channels:
+      - webhook:
+          url: "http://sre-copilot:8080/webhook/alert"
+          method: POST

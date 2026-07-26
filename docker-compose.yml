@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  sre-copilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SIGNOZ_MCP_URL=http://signoz-mcp:8000
+      - SIGNOZ_API_KEY=${SIGNOZ_API_KEY}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=sre-copilot
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REMEDIATION_DRY_RUN=${REMEDIATION_DRY_RUN:-true}
+      - ALLOWED_NAMESPACES=${ALLOWED_NAMESPACES:-default}
+    volumes:
+      - ~/.kube/config:/etc/kube/config:ro
+    depends_on:
+      - otel-collector
+    networks:
+      - signoz-hackathon
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./instrumentation/collector-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    networks:
+      - signoz-hackathon
+
+  demo-app:
+    image: hashicorp/http-echo
+    command: ["-text", "hello from demo app"]
+    ports:
+      - "8081:8080"
+    networks:
+      - signoz-hackathon
+
+networks:
+  signoz-hackathon:
+    driver: bridge

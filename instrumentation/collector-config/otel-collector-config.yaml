@@ -1,0 +1,62 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'sre-copilot'
+          static_configs:
+            - targets: ['sre-copilot:8080']
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: hackathon-production
+        action: upsert
+      - key: team
+        value: manish-kumar-solo
+        action: upsert
+  isolationforest:
+    forest_size: 100
+    subsample_size: 256
+    window_size: 1000
+    contamination_rate: 0.05
+    training_interval: 5m
+    add_anomaly_score: true
+    drop_anomalous_data: false
+    features:
+      - service.name
+      - http.route
+    score_attribute: anomaly.isolation_score
+    classification_attribute: anomaly.is_anomaly
+
+exporters:
+  otlp/signoz:
+    endpoint: signoz-otel-collector:4317
+    tls:
+      insecure: true
+  logging:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, isolationforest, batch]
+      exporters: [otlp/signoz]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [resource, batch]
+      exporters: [otlp/signoz]
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp/signoz]

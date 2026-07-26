@@ -1,0 +1,32 @@
+{
+  "title": "SRE Copilot - Incident Response Overview",
+  "description": "Real-time monitoring of autonomous incident response",
+  "tags": ["sre", "copilot", "incident-response", "hackathon"],
+  "layout": [
+    {
+      "title": "Active Incidents",
+      "query": "SELECT count(*) FROM traces WHERE serviceName = 'sre-copilot-orchestrator' AND attributes['incident.status'] = 'escalated'",
+      "panelType": "value", "yAxisUnit": "none", "x": 0, "y": 0, "w": 6, "h": 4
+    },
+    {
+      "title": "Incidents Resolved (24h)",
+      "query": "SELECT count(*) FROM traces WHERE serviceName = 'sre-copilot-orchestrator' AND attributes['incident.status'] = 'resolved' AND timestamp > now() - INTERVAL 24 HOUR",
+      "panelType": "value", "yAxisUnit": "none", "x": 6, "y": 0, "w": 6, "h": 4
+    },
+    {
+      "title": "Mean Time To Resolution",
+      "query": "SELECT avg(durationNano) / 1000000000 FROM traces WHERE serviceName = 'sre-copilot-orchestrator' AND name = 'incident.handle'",
+      "panelType": "value", "yAxisUnit": "s", "x": 12, "y": 0, "w": 6, "h": 4
+    },
+    {
+      "title": "Anomaly Score Distribution",
+      "query": "SELECT histogramQuantile(0.95)(attributes['anomaly.isolation_score']) FROM traces WHERE attributes['anomaly.is_anomaly'] = 'true'",
+      "panelType": "graph", "yAxisUnit": "none", "x": 0, "y": 4, "w": 12, "h": 6
+    },
+    {
+      "title": "MCP Query Latency",
+      "query": "SELECT avg(durationNano) / 1000000 FROM traces WHERE name LIKE 'mcp.%' GROUP BY name",
+      "panelType": "graph", "yAxisUnit": "ms", "x": 12, "y": 4, "w": 12, "h": 6
+    }
+  ]
+}

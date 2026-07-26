@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-failing-pod
+  namespace: hackathon-demo
+  labels:
+    app: demo-app
+spec:
+  containers:
+  - name: demo-app
+    image: hashicorp/http-echo
+    args:
+      - "-text"
+      - "this pod will fail"
+    resources:
+      limits:
+        memory: "64Mi"
+        cpu: "100m"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 5678
+      initialDelaySeconds: 5
+      periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: hackathon-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+      - name: app
+        image: hashicorp/http-echo
+        args:
+          - "-text"
+          - "hello from demo"
+        ports:
+        - containerPort: 8080

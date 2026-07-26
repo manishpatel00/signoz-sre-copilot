@@ -1,0 +1,27 @@
+runbooks:
+  - name: high-error-rate
+    trigger: error_rate > 5%
+    steps:
+      - action: query_traces
+        params: {min_duration_ms: 500, status: error}
+      - action: query_logs
+        params: {level: ERROR}
+      - action: restart_deployment
+        condition: "error_rate > 10%"
+
+  - name: high-latency
+    trigger: p95_latency > 500ms
+    steps:
+      - action: query_metrics
+        params: {metric: http_server_duration, aggregation: p95}
+      - action: scale_deployment
+        condition: "cpu_utilization > 80%"
+        params: {replicas: "current + 2"}
+
+  - name: pod-crash-loop
+    trigger: pod_status = CrashLoopBackOff
+    steps:
+      - action: get_pod_status
+      - action: query_logs
+        params: {level: ERROR, limit: 50}
+      - action: restart_deployment

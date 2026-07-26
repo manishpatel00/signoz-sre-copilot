@@ -1,0 +1,30 @@
+apiVersion: v1alpha1
+kind: Installation
+metadata:
+  name: signoz-sre-copilot
+spec:
+  deployment:
+    mode: docker
+    flavor: compose
+  signoz:
+    spec:
+      image: signoz/signoz:v0.128.0
+      retention: 7d
+  mcp:
+    spec:
+      enabled: true
+      image: signoz/signoz-mcp-server:latest
+      port: 8000
+      environment:
+        TRANSPORT_MODE: http
+        MCP_SERVER_PORT: "8000"
+        SIGNOZ_URL: http://signoz-frontend:8080
+        SIGNOZ_API_KEY: ${SIGNOZ_API_KEY}
+  otelCollector:
+    spec:
+      image: otel/opentelemetry-collector-contrib:latest
+      configPath: ./instrumentation/collector-config/otel-collector-config.yaml
+      ports:
+        - "4317:4317"
+        - "4318:4318"
+        - "8889:8889"
