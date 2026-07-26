@@ -1,189 +1,156 @@
 # SigNoz SRE Copilot
 
+<div align="center">
+
+![SigNoz SRE Copilot Banner](https://img.shields.io/badge/SigNoz-SRE_Copilot-orange?style=for-the-badge&logo=prometheus)
+![Agents of SigNoz Hackathon](https://img.shields.io/badge/Hackathon-Agents_of_SigNoz-blueviolet?style=for-the-badge)
+![Agent Framework](https://img.shields.io/badge/Agent_Framework-CrewAI-blue?style=for-the-badge)
+![Groq LLM](https://img.shields.io/badge/LLM-Groq_Llama--3.3-green?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
 **Autonomous Self-Healing Infrastructure via SigNoz MCP + CrewAI**
 
-Winner-tier submission for **Agents of SigNoz** hackathon (Track 01: AI & Agent Observability)
-Built by Manish Kumar | Solo participant
+*Winner-tier submission for **Agents of SigNoz** hackathon (Track 01: AI & Agent Observability)*  
+*Built with care by Manish Kumar | Solo participant*
+
+</div>
 
 ---
 
-## What It Does
+## 🌟 Overview
 
-SigNoz SRE Copilot is an **autonomous incident response system** that:
-
-1. **Observes** infrastructure via SigNoz traces, metrics, logs, and alerts
-2. **Diagnoses** root causes using an LLM-powered agent connected to the SigNoz MCP Server
-3. **Remediates** by executing safe K8s actions (restart, scale, rollback)
-4. **Validates** that the fix worked before closing the incident
-5. **Learns** from every incident to improve future responses
-
-**All without human intervention.**
+SigNoz SRE Copilot is an **autonomous incident response system** designed to automate root-cause diagnosis and remediation. By integrating **CrewAI** agents with the official **SigNoz MCP (Model Context Protocol) Server**, the copilot behaves like an automated On-Call Engineer: it intercepts alerts, queries SigNoz telemetry (traces, logs, metrics), determines the root cause, triggers K8s remediation actions, validates recovery, and records self-healing traces back into SigNoz.
 
 ---
 
-## Architecture
+## 📐 Architecture & Flow
 
+The copilot follows a highly structured, multi-agent loop designed to diagnose, fix, and verify infrastructure issues:
+
+```mermaid
+graph TD
+    %% Styling
+    classDef trigger fill:#FF5555,stroke:#333,stroke-width:2px,color:#fff;
+    classDef agent fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff;
+    classDef signoz fill:#E28743,stroke:#333,stroke-width:2px,color:#fff;
+    classDef infra fill:#50C878,stroke:#333,stroke-width:2px,color:#fff;
+    classDef telemetry fill:#8A2BE2,stroke:#333,stroke-width:2px,color:#fff;
+    
+    A[demo-app: Alert Firing] -->|Webhook HTTP POST| B(Orchestrator: Incident Commander)
+    class A trigger;
+    
+    subgraph CrewAI [CrewAI Orchestrated Crew]
+        B --> C[Diagnostic Agent]
+        B --> D[Remediation Agent]
+        B --> E[Validator Agent]
+        class C,D,E agent;
+    end
+    
+    C -->|signoz_search_traces / logs / alerts| F[SigNoz MCP Server]
+    E -->|signoz_execute_builder_query / list_alerts| F
+    class F signoz;
+    
+    F -->|JSON-RPC query API| G[SigNoz Core Backend]
+    class G signoz;
+    
+    D -->|Executes Remediation| H[Kubernetes Cluster]
+    class H infra;
+    H -->|Restart Pod / Rollback / Scale| I[demo-app Target Deployment]
+    class I infra;
+    
+    %% Meta Observability
+    C -.->|Spans & Metadata| J[OpenTelemetry SDK]
+    D -.->|Spans & Metadata| J
+    E -.->|Spans & Metadata| J
+    class J telemetry;
+    
+    J -.->|OLTP Trace Export| K[OTel Collector]
+    class K telemetry;
+    K -.->|Write Spans| G
 ```
-SigNoz Alert Fires
-    |
-    v
-Webhook -> Incident Commander (CrewAI)
-    |
-    +---> Diagnostic Agent (queries traces/metrics/logs via MCP)
-    +---> Remediation Agent (executes K8s/Helm actions)
-    +---> Validator Agent (confirms health via MCP)
-    |
-    v
-Incident Resolved
-```
+
+### Operational Workflow:
+1. **Incident Trigger**: A Prometheus-style alert rule in SigNoz detects high error rates on `demo-app` and sends an HTTP POST webhook to the Flask Orchestrator.
+2. **Orchestrated Investigation**: The **Incident Commander** coordinates a sequential workflow among three specialized CrewAI agents.
+3. **Diagnostic Phase**: The **Diagnostic Agent** queries SigNoz traces, logs, and active alerts using the official `signoz_search_traces` and `signoz_search_logs` MCP tools to find the root cause.
+4. **Remediation Phase**: The **Remediation Agent** maps the diagnostic report to a runbook from the YAML Runbook Library, executing safe commands (e.g., Kubernetes rollout restart).
+5. **Validation Phase**: The **Validator Agent** queries SigNoz metrics builder APIs (`signoz_execute_builder_query`) for the next 3-5 minutes, verifying if the service health has restored before declaring the incident resolved.
 
 ---
 
-## Quick Start
+## 🛠️ Technology Stack
+
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Agent Framework** | [CrewAI](https://github.com/crewaiinc/crewAI) | Orchestrates role-playing collaborative SRE agents. |
+| **Observability Backend** | [SigNoz](https://github.com/SigNoz/signoz) | Self-hosted APM platform storing metrics, logs, and traces. |
+| **AI Interface Protocol**| [Model Context Protocol](https://github.com/SigNoz/signoz-mcp-server) | SigNoz official MCP server, facilitating natural-language LLM tool calls. |
+| **LLM Gateway** | [Groq API Cloud](https://groq.com/) | Powers agents with ultra-low latency Llama-3.3-70b inference. |
+| **Meta-Observability** | [OpenTelemetry Python SDK](https://opentelemetry.io/) | Auto-instruments and traces the agents' own actions into SigNoz. |
+| **Deployment Engine** | [SigNoz Foundry](https://github.com/SigNoz/foundry) | Orchestrates full-stack telemetry and app deployments. |
+| **Runtime Control** | [Kubernetes Python Client](https://github.com/kubernetes-client/python) | Triggers safe rollout restarts and scaling actions. |
+
+---
+
+## 🚦 Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
 - `foundryctl` CLI: `curl -fsSL https://signoz.io/foundry.sh | bash`
 - Python 3.11+
-- kubectl (optional)
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/manishpatel00/signoz-sre-copilot.git
-cd signoz-sre-copilot
+git clone https://github.com/manishpatel00/SigNoz-SRE-Copilot.git
+cd SigNoz-SRE-Copilot
+source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your API keys
 ```
 
-### 2. Deploy with Foundry
+### 2. Configure Environment
+Update your `.env` file with your credentials:
+```env
+# SigNoz API Key
+SIGNOZ_API_KEY=your_service_account_api_key
+
+# Groq API Key (for LLM reasoning)
+GROQ_API_KEY=your_groq_api_key
+```
+
+### 3. Deploy SigNoz Stack using Foundry
 ```bash
 make cast
 ```
 
-### 3. Start the Copilot
+### 4. Run the Orchestrator
 ```bash
-python agents/orchestrator.py
+PYTHONPATH=. ./venv/bin/python agents/orchestrator.py
 ```
 
-### 4. Trigger Demo Incident
+### 5. Trigger the Incident Demo
 ```bash
 make demo
 ```
 
 ---
 
-## SigNoz Features Used
+## 📊 SigNoz Features Utilized
 
-| Feature | How We Use It |
-|---------|--------------|
-| **Traces** | Every agent operation is traced. Diagnostic agent queries traces via MCP. |
-| **Metrics** | PromQL queries for health validation. Isolation Forest anomaly scores. |
-| **Logs** | Log search for error analysis during incident diagnosis. |
-| **Dashboards** | Custom SRE Copilot overview dashboard (import JSON provided). |
-| **Alerts** | Webhook-triggered autonomous response. Alert rules with auto_remediate labels. |
-| **Query Builder** | Metric queries in alert rules for error rate and latency thresholds. |
-| **MCP Server** | LLM-native SigNoz data access via JSON-RPC. Core differentiator. |
+1. **Traces**: Every agent query and action generates OTel spans, providing absolute meta-observability of the AI's operations.
+2. **Logs**: Logs are automatically filtered and queried by the Diagnostic Agent to search for exception stack traces.
+3. **Metrics**: Real-time PromQL and Query Builder v5 API calls are used to measure LCP, error rates, and CPU usage.
+4. **Dashboards**: Comes with an importable [SRE Copilot Overview Dashboard JSON](dashboards/sre-copilot-overview.json).
+5. **Alerts**: Webhook notification channels configured in SigNoz trigger the copilot alert receiver.
+6. **MCP Server**: Interfacing via JSON-RPC protocol to translate LLM intent to SigNoz API actions.
 
 ---
 
-## Tech Stack
+## ⚖️ License
 
-| Layer | Technology |
-|-------|-----------|
-| Agent Framework | CrewAI |
-| Observability Backend | SigNoz (self-hosted via Foundry) |
-| AI Interface | SigNoz MCP Server |
-| LLM | OpenAI GPT-4o |
-| Anomaly Detection | OTel Collector Isolation Forest Processor |
-| Infra Control | Kubernetes Python Client |
-| Meta-Observability | OpenTelemetry Python SDK |
-| Deployment | SigNoz Foundry |
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
 
 ---
-
-## Project Structure
-
-```
-.
-├── casting.yaml                    # Foundry deployment spec
-├── casting.yaml.lock               # Foundry lock file
-├── Makefile                        # Dev commands
-├── requirements.txt                # Python dependencies
-├── .env.example                    # Environment template
-├── .cursorrules                    # Cursor/Copilot rules
-├── SKILL.md                        # Claude Code skill
-├── claude.md                       # Project context for AI assistants
-├── agents/
-│   ├── __init__.py
-│   ├── orchestrator.py             # Main Flask webhook server + CrewAI
-│   ├── diagnostic_agent.py         # SigNoz MCP querying agent
-│   ├── remediation_agent.py        # K8s/Helm remediation actions
-│   └── validator_agent.py          # Post-fix health verification
-├── runbooks/
-│   └── runbook_library.yml         # YAML-defined remediation runbooks
-├── instrumentation/
-│   └── collector-config/
-│       └── otel-collector-config.yaml  # OTel Collector + Isolation Forest
-├── dashboards/
-│   └── sre-copilot-overview.json   # Importable SigNoz dashboard
-├── alerts/
-│   └── high-error-rate.yml         # Alert rules with webhooks
-├── tests/
-│   ├── test_mcp_integration.py     # MCP connectivity tests
-│   ├── test_remediation.py         # Remediation safety tests
-│   └── chaos/
-│       └── pod-failure.yaml        # Chaos engineering manifests
-└── docs/
-    ├── ARCHITECTURE.md
-    ├── SETUP.md
-    ├── API.md
-    └── DEMO.md
-```
-
----
-
-## Demo Video Script (3 minutes)
-
-| Time | Scene | Action |
-|------|-------|--------|
-| 0:00 | Problem | Show SigNoz dashboard with firing alert. Explain flying blind problem. |
-| 0:30 | Solution | Show `make cast` deploying full stack. One command. |
-| 1:00 | Architecture | Show 3-agent CrewAI system: Diagnostic -> Remediation -> Validation. |
-| 1:30 | Live Demo | Trigger incident. Watch Diagnostic Agent query traces via MCP. Watch Remediation Agent restart deployment. |
-| 2:15 | Validation | Validator Agent confirms health. Alert clears. Incident resolved autonomously. |
-| 2:45 | Impact | Show MTTR reduction. Show anomaly detection scores. Show custom dashboard. |
-
----
-
-## Why This Wins
-
-| Criteria | Score | Evidence |
-|----------|-------|----------|
-| **Potential Impact** | 10/10 | Reduces MTTR by 80%+ via autonomous remediation. Addresses flying blind directly. |
-| **Creativity** | 10/10 | First open-source self-healing SRE agent built specifically on SigNoz MCP. |
-| **Technical Excellence** | 10/10 | Multi-agent CrewAI, inline Isolation Forest anomaly detection, reproducible Foundry deployment. |
-| **Best Use of SigNoz** | 10/10 | Uses ALL 7 features: traces, metrics, logs, dashboards, alerts, Query Builder, MCP Server. |
-| **User Experience** | 9/10 | Webhook-driven, zero human intervention, clear incident reports. |
-| **Presentation Quality** | 10/10 | Live demo with clear narrative: incident -> diagnosis -> fix -> verify. |
-
----
-
-## References
-
-- [SigNoz](https://github.com/SigNoz/signoz)
-- [SigNoz MCP Server](https://github.com/SigNoz/signoz-mcp-server)
-- [SigNoz Foundry](https://github.com/SigNoz/foundry)
-- [CrewAI](https://github.com/crewaiinc/crewAI)
-- [OTel Isolation Forest](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/isolationforestprocessor)
-- [SigNoz CrewAI Docs](https://signoz.io/docs/crewai-observability/)
-
----
-
-## License
-
-MIT License - Built for the Agents of SigNoz hackathon.
-
----
-
-*Built with care by Manish Kumar for the Agents of SigNoz hackathon.*
+<div align="center">
+  <sub>Built for the <b>Agents of SigNoz</b> Hackathon 🚀</sub>
+</div>
