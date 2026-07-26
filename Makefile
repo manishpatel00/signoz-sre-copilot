@@ -26,7 +26,7 @@ test-remediation:
 demo:
 	@echo "Triggering demo incident..."
 	@kubectl apply -f tests/chaos/pod-failure.yaml 2>/dev/null || true
-	@curl -X POST http://localhost:8080/webhook/alert \
+	@curl -X POST http://localhost:8085/webhook/alert \
 	  -H "Content-Type: application/json" \
 	  -d '{"alert_name":"demo-high-error-rate","labels":{"service_name":"demo-app","namespace":"hackathon-demo","severity":"warning"}}' || true
 
@@ -46,4 +46,4 @@ health:
 	@curl -s http://localhost:8000/livez || echo "MCP not ready"
 	@echo ""
 	@echo "=== Copilot Health ==="
-	@curl -s http://localhost:8080/health | jq . 2>/dev/null || echo "Copilot not ready"
+	@curl -s http://localhost:8085/health | jq . 2>/dev/null || echo "Copilot not ready"
